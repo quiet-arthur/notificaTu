@@ -1,5 +1,7 @@
 import sqlite3
 
+## MODULARIZAR O MANAGER DB PARA 1- CONEXÃO COM O BANCO, 2- CRIAR TABELAS, 3- INSERIR, DELETER OU ATUALIZAR DADOS DO BANCO
+
 class CollectionDB:
     """
     Manages the SQLite database for collection and owner information.

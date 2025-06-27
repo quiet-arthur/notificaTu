@@ -1,4 +1,4 @@
-from data_processing.api_data_extractor import AlmahAPIExtractor
+from services.api_data_extractor import AlmahAPIExtractor
 
 if __name__ == "__main__":
     extractor = AlmahAPIExtractor()
