@@ -1,4 +1,4 @@
-from settings import AlmahAPI, get_api_credentials # Importar a classe AlmahAPI e a função de credenciais
+from src.config.settings import AlmahAPI, get_api_credentials # Importar a classe AlmahAPI e a função de credenciais
 import httpx
 import polars as pl
 from bs4 import BeautifulSoup
@@ -84,7 +84,7 @@ class AlmahAPIExtractor:
         except Exception as e:
             print(f"An unexpected error occurred during login: {e}")
             return False
-
+    
     def _get_units_html(self) -> str:
         """
         Fetches the HTML content containing units data.
@@ -124,6 +124,9 @@ class AlmahAPIExtractor:
         except Exception as e:
             print(f"An unexpected error occurred fetching units: {e}")
             return ""
+    
+    def _get_units_bills_html(self) -> str:
+        return "None"
 
     def extract_units_data(self, html_content: str) -> pl.DataFrame:
         """
