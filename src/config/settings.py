@@ -9,6 +9,7 @@ class AlmahAPI:
     LOGIN_ENDPOINT = "/SIS/EmpresaWS.asmx/SelecionarPorLoginSenha"
     ACCESS_ENDPOINT = "/novo_acesso.aspx"
     UNITS_EXPORT_ENDPOINT = "/CND/UnidadeCondominioWS.asmx/Exportar"
+    UNITS_BILLS_EXPORT_ENDPOINT = "/FIN/ContasAReceberWS.asmx/GerarRelatorioInadimplenciaCondominioXLS"
 
     # IDs específicos do ambiente
     CONDOMINIO_ID = 205

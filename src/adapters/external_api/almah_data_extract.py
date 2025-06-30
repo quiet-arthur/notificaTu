@@ -1,4 +1,5 @@
 from src.config.settings import AlmahAPI, get_api_credentials # Importar a classe AlmahAPI e a função de credenciais
+from datetime import date
 import httpx
 import polars as pl
 from bs4 import BeautifulSoup
@@ -15,12 +16,14 @@ class AlmahAPIExtractor:
         self.login_endpoint = AlmahAPI.LOGIN_ENDPOINT
         self.access_endpoint = AlmahAPI.ACCESS_ENDPOINT
         self.units_export_endpoint = AlmahAPI.UNITS_EXPORT_ENDPOINT
+        self.units_bills_export_endpoint = AlmahAPI.UNITS_BILLS_EXPORT_ENDPOINT
 
         # IDs específicos do ambiente (podem ser passados no construtor ou lidos de settings/env)
         self.condominio_id = AlmahAPI.CONDOMINIO_ID
         self.usuario_id = AlmahAPI.USUARIO_ID
         self.estabelecimento_id = AlmahAPI.ESTABELECIMENTO_ID
         self.perfil_uso_id = AlmahAPI.PERFIL_USO_ID
+        self.today = date.today().strftime("%d/%m/%Y")
 
         # Obter credenciais do .env via settings.py
         credentials = get_api_credentials()
@@ -126,7 +129,28 @@ class AlmahAPIExtractor:
             return ""
     
     def _get_units_bills_html(self) -> str:
-        return "None"
+        if not self._is_authenticated:
+            print("Not authenticated. Attempting to log in...")
+            if not self._login_and_set_cookies():
+                print("Failed to authenticate. Cannot get units data.")
+                return ""
+            
+        unit_bills_url = f"{self.base_url}{self.units_bills_export_endpoint}"
+        payload_bills = {
+            "dataInadimplencia": self.today,
+            "listaCondominio": self.condominio_id,
+            "dataVencimentoInicial":"20/06/2020",
+            "dataVencimentoFinal": self.today,
+            "tipoRelatorio":"D"
+        }
+
+        bills = self.client.post(
+            unit_bills_url,
+            json=payload_bills
+        )
+        print(bills.json())
+
+        return "omagodu"
 
     def extract_units_data(self, html_content: str) -> pl.DataFrame:
         """
@@ -196,13 +220,7 @@ class AlmahAPIExtractor:
 if __name__ == "__main__":
     extractor = AlmahAPIExtractor()
     try:
-        units_df = extractor.get_all_units_dataframe()
-        if not units_df.is_empty():
-            print("\nFetched Units Data (first 5 rows):")
-            print(units_df.head())
-            print(f"\nSchema:\n{units_df.schema}")
-        else:
-            print("No units data to display.")
+        extractor._get_units_bills_html
     except Exception as e:
         print(f"An error occurred during API extraction: {e}")
     finally:
