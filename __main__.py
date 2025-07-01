@@ -3,7 +3,9 @@ import polars as pl
 if __name__ == "__main__":
     extractor = AlmahAPIExtractor()
     try:
-        extractor._get_units_bills_html()
+        # print(extractor.get_all_units_dataframe())
+        print(extractor.get_all_non_payments_dataframe())
+        
     except Exception as e:
         print(f"An error occurred during API extraction: {e}")
     finally:

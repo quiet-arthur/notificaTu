@@ -5,6 +5,8 @@ import polars as pl
 from bs4 import BeautifulSoup
 from io import StringIO
 import csv
+from typing import Optional
+import logging
 
 class AlmahAPIExtractor:
     """
@@ -23,6 +25,7 @@ class AlmahAPIExtractor:
         self.usuario_id = AlmahAPI.USUARIO_ID
         self.estabelecimento_id = AlmahAPI.ESTABELECIMENTO_ID
         self.perfil_uso_id = AlmahAPI.PERFIL_USO_ID
+        self.default_date = "01/01/2000"
         self.today = date.today().strftime("%d/%m/%Y")
 
         # Obter credenciais do .env via settings.py
@@ -30,6 +33,7 @@ class AlmahAPIExtractor:
         self.login_user = credentials.get("user")
         self.alpha_password_hash = credentials.get("alpha_password")
 
+        self.logger = logging.getLogger(__name__)
         self.client = httpx.Client() # O cliente HTTPX será gerenciado pela instância da classe
         self._is_authenticated = False # Flag para controlar o status de autenticação
 
@@ -50,11 +54,11 @@ class AlmahAPIExtractor:
                 json=payload_login
             )
             response_login.raise_for_status() # Levanta exceção para status de erro HTTP
-            print(f"Status Code (Login): {response_login.status_code}")
+            self.logger.info(f"Status Code (Login): {response_login.status_code}")
 
             login_data = response_login.json()
             if not login_data.get('d') or not login_data['d'][0].get('Codigo'):
-                print("Login failed: No 'Codigo' found in response.")
+                self.logger.warning("Login failed: No 'Codigo' found in response.")
                 return False
 
             access_url = f"{self.base_url}{self.access_endpoint}"
@@ -71,21 +75,21 @@ class AlmahAPIExtractor:
             )
 
             if response_access.cookies:
-                print(f'Cookies captured with success!')
+                self.logger.info(f'Cookies captured with success!')
                 self._is_authenticated = True
                 return True
             else:
-                print('Failed to capture cookies after access request.')
+                self.logger.error('Failed to capture cookies after access request.')
                 return False
             
         except httpx.HTTPStatusError as e:
-            print(f"HTTP error during login: {e.response.status_code} - {e.response.text}")
+            self.logger.error(f"HTTP error during login: {e.response.status_code} - {e.response.text}")
             return False
         except httpx.RequestError as e:
-            print(f"Network error during login: {e}")
+            self.logger.error(f"Network error during login: {e}")
             return False
         except Exception as e:
-            print(f"An unexpected error occurred during login: {e}")
+            self.logger.error(f"An unexpected error occurred during login: {e}")
             return False
     
     def _get_units_html(self) -> str:
@@ -94,9 +98,9 @@ class AlmahAPIExtractor:
         Returns the HTML content as a string, or an empty string if failed.
         """
         if not self._is_authenticated:
-            print("Not authenticated. Attempting to log in...")
+            self.logger.warning("Not authenticated. Attempting to log in...")
             if not self._login_and_set_cookies():
-                print("Failed to authenticate. Cannot get units data.")
+                self.logger.error("Failed to authenticate. Cannot get units data.")
                 return ""
 
         units_url = f'{self.base_url}{self.units_export_endpoint}'
@@ -112,47 +116,66 @@ class AlmahAPIExtractor:
             html_content = units_data.get('d', '')
 
             if html_content:
-                print("Units HTML content fetched successfully.")
+                self.logger.info("Units HTML content fetched successfully.")
                 return html_content
             else:
-                print('No HTML content found. Verify the units export!')
+                self.logger.warning('No HTML content found. Verify the units export!')
                 return ""
             
         except httpx.HTTPStatusError as e:
-            print(f"HTTP error fetching units: {e.response.status_code} - {e.response.text}")
+            self.logger.error(f"HTTP error fetching units: {e.response.status_code} - {e.response.text}")
             return ""
         except httpx.RequestError as e:
-            print(f"Network error fetching units: {e}")
+            self.logger.error(f"Network error fetching units: {e}")
             return ""
         except Exception as e:
-            print(f"An unexpected error occurred fetching units: {e}")
+            self.logger.error(f"An unexpected error occurred fetching units: {e}")
             return ""
     
-    def _get_units_bills_html(self) -> str:
+    def _get_non_payments_html(self) -> str:
+        """
+        Fetches the HTML content containing non payments data.
+        Returns the HTML content as a string, or an empty string if failed.
+        """
         if not self._is_authenticated:
-            print("Not authenticated. Attempting to log in...")
+            self.logger.warning("Not authenticated. Attempting to log in...")
             if not self._login_and_set_cookies():
-                print("Failed to authenticate. Cannot get units data.")
+                self.logger.error("Failed to authenticate. Cannot get units data.")
                 return ""
             
         unit_bills_url = f"{self.base_url}{self.units_bills_export_endpoint}"
         payload_bills = {
             "dataInadimplencia": self.today,
             "listaCondominio": self.condominio_id,
-            "dataVencimentoInicial":"20/06/2020",
+            "dataVencimentoInicial": self.default_date,
             "dataVencimentoFinal": self.today,
             "tipoRelatorio":"D"
         }
 
-        bills = self.client.post(
-            unit_bills_url,
-            json=payload_bills
-        )
-        print(bills.json())
+        try:
+            response = self.client.post(unit_bills_url,json=payload_bills)
+            response.raise_for_status()
+            non_payments_data = response.json()
+            html_content = non_payments_data.get('d', '')
 
-        return "omagodu"
+            if html_content:
+                self.logger.info("Units HTML content fetched successfully.")
+                return html_content
+            else:
+                self.logger.warning('No HTML content found. Verify the units export!')
+                return ""
 
-    def extract_units_data(self, html_content: str) -> pl.DataFrame:
+        except httpx.HTTPStatusError as e:
+            self.logger.error(f"HTTP error fetching units: {e.response.status_code} - {e.response.text}")
+            return ""
+        except httpx.RequestError as e:
+            self.logger.error(f"Network error fetching units: {e}")
+            return ""
+        except Exception as e:
+            self.logger.error(f"An unexpected error occurred fetching units: {e}")
+            return ""
+
+    def extract_tabular_data(self, html_content: str) -> pl.DataFrame:
         """
         Extracts tabular data from HTML content and returns it as a Polars DataFrame.
         """
@@ -206,7 +229,18 @@ class AlmahAPIExtractor:
         """
         html_content = self._get_units_html()
         if html_content:
-            return self.extract_units_data(html_content)
+            return self.extract_tabular_data(html_content)
+        else:
+            return pl.DataFrame()
+    
+    def get_all_non_payments_dataframe(self) -> pl.DataFrame:
+        """
+        Orchestrates the process of logging in, fetching HTML, and extracting data.
+        Returns a Polars DataFrame with all non paied bills .
+        """
+        html_content = self._get_non_payments_html()
+        if html_content:
+            return self.extract_tabular_data(html_content)
         else:
             return pl.DataFrame()
 
@@ -214,13 +248,15 @@ class AlmahAPIExtractor:
         """Closes the httpx client session."""
         if self.client:
             self.client.close()
-            print("HTTPX client session closed.")
+            self.logger.info("HTTPX client session closed.")
 
 # Example usage (for testing within this file, or in main.py):
 if __name__ == "__main__":
     extractor = AlmahAPIExtractor()
     try:
-        extractor._get_units_bills_html
+        print(extractor.get_all_units_dataframe())
+        print(extractor.get_all_non_payments_dataframe())
+
     except Exception as e:
         print(f"An error occurred during API extraction: {e}")
     finally:
