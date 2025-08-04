@@ -1,10 +1,21 @@
-from src.adapters.external_api.almah_data_extract import AlmahAPIExtractor
+from src.adapters.almah_data_extract import AlmahAPIExtractor
+from src.services.non_paying_data_processing import DataFrameManager
+
 import polars as pl
+
 if __name__ == "__main__":
     extractor = AlmahAPIExtractor()
     try:
-        # print(extractor.get_all_units_dataframe())
-        print(extractor.get_all_non_payments_dataframe())
+        df = extractor.get_all_non_payments_dataframe()
+   
+        df_final = (
+            DataFrameManager(df)
+            .type_handle()
+            .owner_agg()
+            .get_result()
+        )
+        print(df_final)
+        
         
     except Exception as e:
         print(f"An error occurred during API extraction: {e}")
