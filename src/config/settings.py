@@ -25,7 +25,7 @@ class AlmahAPI:
     UNITS_BILLS_EXPORT_ENDPOINT = "/FIN/ContasAReceberWS.asmx/GerarRelatorioInadimplenciaCondominioXLS"
 
     # IDs específicos do ambiente
-    CONDOMINIO_ID = 205
+    CONDOMINIO_ID = 164
     USUARIO_ID = 341
     ESTABELECIMENTO_ID = 1
     PERFIL_USO_ID = 1
