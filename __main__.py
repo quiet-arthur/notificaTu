@@ -14,7 +14,7 @@ if __name__ == "__main__":
         # print(units_df)
         # print(units_df.get_columns())
 
-        df_final= (
+        df_final = (
             NonPaymentManager(default_df, units_df)
                 .get_non_payment_data()
         )

@@ -1,4 +1,5 @@
 import polars as pl 
+import re
 
 def format_phone(tel_column):
     phone = (
@@ -21,6 +22,29 @@ def format_cpf(cpf_column):
     '''
     ...
 
+def format_unit(unit: str) -> str:
+    if not unit:
+        return ""
+
+    unit = unit.upper().strip()
+    unit = re.sub(r'\b(BLOCO|BL\.?|APTO|APT|AP)\b', '', unit)
+    unit = re.sub(r'[\-\.]', ' ', unit)
+    unit = re.sub(r'\s+', ' ', unit).strip()
+
+    sections = unit.split()
+
+    block = ""
+    apt = ""
+
+    for section in sections:
+        if re.fullmatch(r'[A-Z]', section) and not block:
+            block = section
+        elif re.fullmatch(r'\d+', section) and not apt:
+            apt = section
+
+    return f"{block}{apt}" if block else apt
+
+
 class NonPaymentManager:
     def __init__(self, default_df, units_df):
         '''
@@ -36,7 +60,10 @@ class NonPaymentManager:
             Escrever algo que descreva a função
         '''
         self.clone_default_df = self.clone_default_df.select([
-            pl.col("Unidade").alias("unidade"),
+            pl.col("Unidade")
+                .cast(pl.Utf8)
+                .map_elements(format_unit, return_dtype=pl.String)
+                .alias("unidade"),
             pl.col("Nome do Pagador").alias("proprietario"),
             pl.col("Vlr Total").
                 str.replace(",", ".")
@@ -45,7 +72,10 @@ class NonPaymentManager:
         ])
 
         self.clone_units_df = self.clone_units_df.select([
-            pl.col("Unidade").alias("unidade"),
+            pl.col("Unidade")
+                .cast(pl.Utf8)
+                .map_elements(format_unit, return_dtype=pl.String)
+                .alias("unidade"),
             pl.col("CodigoBloco").cast(pl.Utf8).alias("bloco"),
             pl.col("ProprietarioCpfCnpj").cast(pl.Utf8).alias("cpf_cnpj"),
             pl.concat_list(["ProprietarioEmail1", "ProprietarioEmail2"])
@@ -70,7 +100,8 @@ class NonPaymentManager:
             pl.col("proprietario"),
             maintain_order=True
         ).agg(
-            pl.col("vlr_total").sum()
+            pl.col("vlr_total")
+                .sum()
                 .alias("vlr_inadimplente"),
         )
         return self
@@ -79,5 +110,4 @@ class NonPaymentManager:
         self.set_columns()
         self.default_agg()
 
-        # return self.clone_units_df, self.clone_default_df
         return self.clone_default_df.join(self.clone_units_df, on="unidade")
