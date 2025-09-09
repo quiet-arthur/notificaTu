@@ -250,6 +250,7 @@ class AlmahAPIExtractor:
             self.client.close()
             self.logger.info("HTTPX client session closed.")
 
+
 # Example usage (for testing within this file, or in main.py):
 if __name__ == "__main__":
     extractor = AlmahAPIExtractor()

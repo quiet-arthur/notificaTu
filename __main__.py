@@ -1,28 +1,35 @@
 from src.adapters.almah_data_extract import AlmahAPIExtractor
-from src.services.non_paying_data_processing import NonPaymentManager
+from src.services.non_paying_data_processing import DataInteger
+from src.adapters.waha_api import WppEngine
 
 import polars as pl
 
 if __name__ == "__main__":
     extractor = AlmahAPIExtractor()
+    wpp = WppEngine()
     try:
-        default_df = extractor.get_all_non_payments_dataframe()
-        # print(default_df)
-        # print(default_df.get_columns())
-
+        # BUSCA OS DADOS NO SISTEMA API-ALMAH
+        debts_df = extractor.get_all_non_payments_dataframe()
         units_df = extractor.get_all_units_dataframe()
-        # print(units_df)
-        # print(units_df.get_columns())
 
-        df_final = (
-            NonPaymentManager(default_df, units_df)
+        # FORMATA DADOS DE INADIMPLENCIA
+        final_data = (
+            DataInteger(debts_df, units_df)
                 .get_non_payment_data()
         )
-        print(df_final)
-        # print(df1)
-        # print(df2)
+        print(final_data)
+
+        test_df = pl.DataFrame({
+            "unit": ["A001"],
+            "phone_list": [["556799560548", "556799509058"]]
+        })
+
+        for unit, phone_list in test_df.select(["unit", "phone_list"]).iter_rows():
+            for phone in phone_list:
+                wpp.send_nonpayment_notification(phone, unit, "PS Assessoria")
         
     except Exception as e:
         print(f"An error occurred during API extraction: {e}")
     finally:
-        extractor.close()
+        pass
+        # extractor.close()
