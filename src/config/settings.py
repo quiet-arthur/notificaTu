@@ -1,5 +1,5 @@
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv 
 import logging
 
 # Chamada para carregar as variáveis de ambiente

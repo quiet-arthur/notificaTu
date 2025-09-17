@@ -23,8 +23,8 @@ class DataInteger:
             pl.col("Unidade")
                 .cast(pl.Utf8)
                 .map_elements(format_unit, return_dtype=pl.String)
-                .alias("unit"),
-            pl.col("Nome do Pagador").alias("owner"),
+                .alias("unidade"),
+            pl.col("Nome do Pagador").alias("proprietario"),
             pl.col("Vlr Original")
                 .str.replace(",", ".")
                 .cast(pl.Float64)
@@ -32,7 +32,7 @@ class DataInteger:
             pl.col("Vlr Total")
                 .str.replace(",", ".")
                 .cast(pl.Float64)
-                .alias("vl_taxes"),
+                .alias("vlr_juros_multa"),
             pl.col("Venc"),
             pl.col("Status")
         ])
@@ -47,8 +47,8 @@ class DataInteger:
             pl.col("Unidade")
                 .cast(pl.Utf8)
                 .map_elements(format_unit, return_dtype=pl.String)
-                .alias("unit"),
-            pl.col("CodigoBloco").cast(pl.Utf8).alias("block"),
+                .alias("unidade"),
+            pl.col("CodigoBloco").cast(pl.Utf8).alias("bloco"),
             format_cpf_pl(pl.col("ProprietarioCpfCnpj")).alias("cpf_cnpj"),
             pl.concat_list(["ProprietarioEmail1", "ProprietarioEmail2"])
                 .list.drop_nulls()
@@ -83,7 +83,7 @@ class DataInteger:
         self._set_units_columns()
         self.default_agg()
 
-        return self.clone_debts.join(self.clone_units_df, on="unit")
+        return self.clone_debts.join(self.clone_units_df, on="unidade")
 
 # VERIFICAR VIABILIDADE DA CLASSE, EM VISTA DAS DIVERGENCIAS DE VALORES
 class LevelPriceCalculator:

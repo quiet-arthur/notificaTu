@@ -1,7 +1,7 @@
 from src.config.settings import AlmahAPI, get_api_credentials # Importar a classe AlmahAPI e a função de credenciais
 from datetime import date
 import httpx
-import polars as pl
+import polars as pl 
 from bs4 import BeautifulSoup
 from io import StringIO
 import csv
